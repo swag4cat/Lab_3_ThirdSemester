@@ -154,8 +154,11 @@ go install github.com/stretchr/testify@latest    # Для assertions в тест
     
 
 **Для генерации UML диаграмм:**
+
     - Онлайн: https://www.plantuml.com/plantuml/
+    
     - Или локально: sudo apt-get install plantuml
+    
 
 ### 🛠️ Команды сборки и управления
 
