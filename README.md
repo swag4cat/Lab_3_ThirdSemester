@@ -168,6 +168,7 @@ go install github.com/stretchr/testify@latest    # Для assertions в тест
 make              # Сборка проекта
 
 make run          # Запуск основной программы
+
 make test         # Запуск всех тестов
 
 make coverage     # Тесты с HTML отчетом о покрытии
