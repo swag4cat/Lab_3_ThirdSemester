@@ -147,8 +147,11 @@ go install github.com/stretchr/testify@latest    # Для assertions в тест
 ```
 
 **Основные зависимости проекта (автоматически устанавливаются через go.mod):**
+   
     -  github.com/stretchr/testify - библиотека для assertions в тестах
+    
     -  Встроенные пакеты Go: testing, fmt, os, strings, и др.
+    
 
 **Для генерации UML диаграмм:**
     - Онлайн: https://www.plantuml.com/plantuml/
@@ -159,7 +162,6 @@ go install github.com/stretchr/testify@latest    # Для assertions в тест
 # Основные команды
 
 ```bash
-# Основные команды
 make              # Сборка проекта
 
 make run          # Запуск основной программы
