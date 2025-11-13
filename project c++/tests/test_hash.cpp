@@ -1,5 +1,6 @@
 #include <gtest/gtest.h>
 #include <algorithm>
+#include <climits>
 
 #include "../include/HashTable.h"
 
@@ -433,4 +434,245 @@ TEST_F(HashTableTest, FullTableScenario) {
     // Пробуем добавить еще
     ht.insert(10, 1000);
     EXPECT_TRUE(ht.get(10).has_value());
+}
+
+// Тесты для покрытия cuckooRehash
+TEST_F(HashTableTest, CuckooRehashDirectTest) {
+    HashTable ht(3, HashType::CUCKOO_HASHING);
+
+    ht.insert(1, 100);
+    ht.insert(2, 200);
+    ht.insert(3, 300);
+
+    ht.insert(4, 400);
+
+    EXPECT_TRUE(ht.get(1).has_value());
+    EXPECT_TRUE(ht.get(2).has_value());
+    EXPECT_TRUE(ht.get(3).has_value());
+    EXPECT_TRUE(ht.get(4).has_value());
+}
+
+TEST_F(HashTableTest, CuckooInsertWithRehashFallback) {
+    HashTable ht(2, HashType::CUCKOO_HASHING);
+
+    ht.insert(1, 100);
+    ht.insert(2, 200);
+
+    ht.insert(3, 300);
+
+    EXPECT_TRUE(ht.get(1).has_value());
+    EXPECT_TRUE(ht.get(2).has_value());
+    EXPECT_TRUE(ht.get(3).has_value());
+}
+
+TEST_F(HashTableTest, CuckooSwapOperations) {
+    HashTable ht(5, HashType::CUCKOO_HASHING);
+
+    ht.insert(1, 100);
+    ht.insert(6, 600);
+
+    // Проверяем что оба элемента на месте после swap
+    EXPECT_TRUE(ht.get(1).has_value());
+    EXPECT_TRUE(ht.get(6).has_value());
+    EXPECT_EQ(ht.get(1).value(), 100);
+    EXPECT_EQ(ht.get(6).value(), 600);
+}
+
+TEST_F(HashTableTest, CuckooRemoveEdgeCases) {
+    HashTable ht(11, HashType::CUCKOO_HASHING);
+
+    // Тестируем удаление в разных позициях
+    ht.insert(1, 100);
+    ht.insert(2, 200);
+
+    EXPECT_TRUE(ht.remove(1));
+    EXPECT_FALSE(ht.get(1).has_value());
+    EXPECT_TRUE(ht.get(2).has_value());
+
+    ht.insert(3, 300);
+    ht.insert(4, 400);
+
+    EXPECT_TRUE(ht.remove(4));
+    EXPECT_FALSE(ht.get(4).has_value());
+}
+
+// Явно тестируем все ветки
+TEST_F(HashTableTest, Hash1MethodCoverage) {
+
+    // DOUBLE_HASHING
+    HashTable doubleHt(11, HashType::DOUBLE_HASHING);
+    doubleHt.insert(5, 100);
+    EXPECT_TRUE(doubleHt.get(5).has_value());
+
+    // CUCKOO_HASHING с различными ключами
+    HashTable cuckooHt(11, HashType::CUCKOO_HASHING);
+    cuckooHt.insert(10, 200);
+    cuckooHt.insert(20, 300);
+    EXPECT_TRUE(cuckooHt.get(10).has_value());
+    EXPECT_TRUE(cuckooHt.get(20).has_value());
+
+    // FOLDING_HASHING
+    HashTable foldingHt(11, HashType::FOLDING_HASHING);
+    foldingHt.insert(123, 400);
+    foldingHt.insert(4567, 500);
+    EXPECT_TRUE(foldingHt.get(123).has_value());
+    EXPECT_TRUE(foldingHt.get(4567).has_value());
+}
+
+TEST_F(HashTableTest, CuckooMaxIterationsScenario) {
+    HashTable ht(3, HashType::CUCKOO_HASHING);
+
+    std::vector<int> collisionKeys = {1, 4, 7, 10, 13, 16};
+
+    for (int key : collisionKeys) {
+        ht.insert(key, key * 10);
+    }
+
+    for (int key : collisionKeys) {
+        EXPECT_TRUE(ht.get(key).has_value()) << "Key " << key << " should be present after rehash";
+        EXPECT_EQ(ht.get(key).value(), key * 10);
+    }
+}
+
+TEST_F(HashTableTest, CuckooMultipleRehashChain) {
+    HashTable ht(2, HashType::CUCKOO_HASHING);
+
+    // Последовательная вставка
+    for (int i = 1; i <= 10; i++) {
+        ht.insert(i, i * 100);
+    }
+
+    for (int i = 1; i <= 10; i++) {
+        EXPECT_TRUE(ht.get(i).has_value()) << "Key " << i << " should be present";
+        EXPECT_EQ(ht.get(i).value(), i * 100);
+    }
+}
+
+TEST_F(HashTableTest, FoldingHashWithRehash) {
+    HashTable ht(3, HashType::FOLDING_HASHING);
+
+    // Вставляем элементы чтобы вызвать rehash
+    ht.insert(123, 100);
+    ht.insert(456, 200);
+    ht.insert(789, 300);
+
+    ht.insert(101112, 400);
+
+    // Проверяем что все элементы на месте
+    EXPECT_TRUE(ht.get(123).has_value());
+    EXPECT_TRUE(ht.get(456).has_value());
+    EXPECT_TRUE(ht.get(789).has_value());
+    EXPECT_TRUE(ht.get(101112).has_value());
+}
+
+TEST_F(HashTableTest, CuckooComplexDisplacementChain) {
+    HashTable ht(5, HashType::CUCKOO_HASHING);
+
+    // Создаем цепочку вытеснений
+    ht.insert(1, 100);
+    ht.insert(6, 600);
+    ht.insert(11, 1100);
+    ht.insert(16, 1600);
+
+    // Все элементы должны быть доступны
+    EXPECT_TRUE(ht.get(1).has_value());
+    EXPECT_TRUE(ht.get(6).has_value());
+    EXPECT_TRUE(ht.get(11).has_value());
+    EXPECT_TRUE(ht.get(16).has_value());
+}
+
+TEST_F(HashTableTest, HashTypeSwitchingWithData) {
+    HashTable ht(11, HashType::DOUBLE_HASHING);
+
+    // Добавляем данные с одним типом хеширования
+    ht.insert(1, 100);
+    ht.insert(2, 200);
+    ht.insert(3, 300);
+
+    // Данные должны остаться доступными
+    EXPECT_TRUE(ht.get(1).has_value());
+    EXPECT_TRUE(ht.get(2).has_value());
+    EXPECT_TRUE(ht.get(3).has_value());
+}
+
+TEST_F(HashTableTest, CuckooDeleteAndReinsert) {
+    HashTable ht(11, HashType::CUCKOO_HASHING);
+
+    // Вставляем, удаляем и снова вставляем
+    ht.insert(1, 100);
+    ht.insert(2, 200);
+
+    EXPECT_TRUE(ht.remove(1));
+    EXPECT_FALSE(ht.get(1).has_value());
+
+    // Вставляем снова
+    ht.insert(1, 150);
+    EXPECT_TRUE(ht.get(1).has_value());
+    EXPECT_EQ(ht.get(1).value(), 150);
+}
+
+// Тестируем специальные ключи
+TEST_F(HashTableTest, EdgeCaseKeysAllHashTypes) {
+
+    // Отрицательные ключи
+    HashTable ht(11, HashType::DOUBLE_HASHING);
+
+    // Очень большие ключи
+    ht.insert(INT_MAX - 1, 999);
+    ht.insert(INT_MAX, 1000);
+
+    EXPECT_TRUE(ht.get(INT_MAX - 1).has_value());
+    EXPECT_TRUE(ht.get(INT_MAX).has_value());
+}
+
+TEST_F(HashTableTest, CuckooRehashPreservesData) {
+    HashTable ht(3, HashType::CUCKOO_HASHING);
+
+    // Заполняем таблицу данными
+    std::vector<std::pair<int, int>> testData = {
+        {1, 100}, {2, 200}, {3, 300}, {4, 400}, {5, 500}
+    };
+
+    for (const auto& data : testData) {
+        ht.insert(data.first, data.second);
+    }
+
+    // Проверяем, что все данные сохранены после rehash
+    for (const auto& data : testData) {
+        EXPECT_TRUE(ht.get(data.first).has_value());
+        EXPECT_EQ(ht.get(data.first).value(), data.second);
+    }
+}
+
+// Тест для проверки, что таблица корректно обрабатывает последовательные rehash
+TEST_F(HashTableTest, MultipleSequentialRehash) {
+    HashTable ht(2, HashType::CUCKOO_HASHING);
+
+    for (int i = 0; i < 20; i++) {
+        ht.insert(i, i * 10);
+
+        for (int j = 0; j <= i; j++) {
+            EXPECT_TRUE(ht.get(j).has_value())
+            << "Key " << j << " should be accessible after inserting key " << i;
+        }
+    }
+}
+
+TEST_F(HashTableTest, InsertWithRehashBranch) {
+    HashTable ht(3, HashType::DOUBLE_HASHING);
+
+    // Заполняем таблицу чтобы следующий insert вызвал rehash
+    for (int i = 0; i < 10; i++) {
+        ht.insert(i, i * 10);
+    }
+
+    ht.insert(10, 1000);
+
+    EXPECT_TRUE(ht.get(10).has_value());
+    EXPECT_EQ(ht.get(10).value(), 1000);
+
+    // Проверяем что старые данные не потеряны
+    for (int i = 0; i < 10; i++) {
+        EXPECT_TRUE(ht.get(i).has_value());
+    }
 }
